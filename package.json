@@ -1,0 +1,31 @@
+{
+  "name": "php-package-downloader",
+  "version": "1.0.0",
+  "description": "A Node.js online application to download PHP composer packages and provide them as a ZIP file.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon --watch src"
+  },
+  "author": "JOBIANSTECHIE",
+  "license": "MIT",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "child_process": "^1.0.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "uuid": "^10.0.0"
+  },
+  "keywords": [
+    "Node.js",
+    "PHP",
+    "package",
+    "downloader",
+    "composer",
+    "zip",
+    "socket.io",
+    "express",
+    "packagist"
+  ]
+}
