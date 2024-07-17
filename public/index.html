@@ -1,1 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A Node.js online application to download PHP composer packages and provide them as a ZIP file.">
+  <meta name="keywords" content="ZIP download for Composer packages, download PHP libraries, online composer package installer, downloader, composer, zip, express, packagist, composer online downloader, packagist online downloader, PHP package downloader, download composer packages, online composer tool, PHP dependency manager, zip PHP packages, composer JSON generator, composer installation tool">
+  <meta name="author" content="JOBIANSTECHIE">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#007bff">
+  <title>PHP Package Downloader</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
 
+    h1 {
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    label {
+      margin-bottom: 10px;
+      display: inline-block;
+      font-weight: bold;
+    }
+
+    textarea {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: none;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #downloadLink {
+      display: none;
+      margin-top: 20px;
+      text-decoration: none;
+      padding: 10px;
+      background-color: #28a745;
+      color: white;
+      border-radius: 4px;
+      text-align: center;
+      display: block;
+    }
+
+    #downloadLink:hover {
+      background-color: #218838;
+    }
+
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+
+    .success {
+      color: green;
+      font-weight: bold;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    .modal-content {
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 500px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* View Logs Button */
+    #openLogsButton {
+      margin-left: 10px;
+      padding: 5px 10px;
+      font-size: 12px;
+      display: inline-block;
+    }
+
+    #downloadLinkModal {
+      display: none;
+      margin-top: 20px;
+      text-decoration: none;
+      padding: 10px;
+      background-color: #28a745;
+      color: white;
+      border-radius: 4px;
+      text-align: center;
+      display: block;
+    }
+
+    #downloadLinkModal:hover {
+      background-color: #218838;
+    }
+  </style>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>PHP Package Downloader</h1>
+    <form id="packageForm">
+      <label for="composerJson">Composer.json Content:</label>
+      <button id="openLogsButton" type="button">View Logs</button>
+      <textarea id="composerJson" required></textarea>
+      <button type="submit">Download Packages</button>
+    </form>
+    <a id="downloadLink" style="display: none;" href="#" download>Download ZIP</a>
+  </div>
+
+  <!-- Modal -->
+  <div id="logModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Download Logs</h2>
+      <div id="logs" style="white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></div>
+      <a id="downloadLinkModal" style="display: none;" href="#" download>Download ZIP</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('packageForm');
+    const logsDiv = document.getElementById('logs');
+    const downloadLink = document.getElementById('downloadLink');
+    const socket = io();
+    const logModal = document.getElementById('logModal');
+    const closeModal = document.getElementsByClassName('close')[0];
+    const openLogsButton = document.getElementById('openLogsButton');
+    const downloadLinkModal = document.getElementById('downloadLinkModal');
+
+    socket.on('log', (data) => {
+      logsDiv.innerText += data + '\n';
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+    });
+
+    socket.on('done', (data) => {
+      downloadLink.href = data.zipPath;
+      downloadLinkModal.href = data.zipPath;
+      downloadLink.style.display = 'block';
+      downloadLinkModal.style.display = 'block';
+      logsDiv.innerHTML += `<span class="success">Download ready: ${data.zipPath}</span>\n`;
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+
+      // Hide the download link after EXPIRATION_TIME (in milliseconds)
+      setTimeout(() => {
+        downloadLink.style.display = 'none';
+        downloadLinkModal.style.display = 'none';
+        logsDiv.innerText = 'The download link has expired.\n';
+      }, data.EXPIRATION_TIME);
+    });
+
+    socket.on('error', (message) => {
+      logsDiv.innerHTML = `<span class="error">Error: ${message}</span>\n`;
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      logsDiv.innerText = '';
+      downloadLink.style.display = 'none';
+      downloadLinkModal.style.display = 'none';
+      const composerJson = document.getElementById('composerJson').value;
+
+      socket.emit('download', composerJson);
+      logsDiv.innerText += 'Starting download...\n';
+
+      // Show modal
+      logModal.style.display = 'block';
+    });
+
+    closeModal.onclick = () => {
+      logModal.style.display = 'none';
+    };
+
+    // Close the modal when clicking outside of it
+    window.onclick = (event) => {
+      if (event.target === logModal) {
+        logModal.style.display = 'none';
+      }
+    };
+
+    // Open logs modal button
+    openLogsButton.onclick = () => {
+      logModal.style.display = 'block';
+    };
+  </script>
+</body>
+</html>
